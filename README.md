@@ -232,3 +232,5 @@ Pake's development can not be without these Hackers. They contributed a lot of c
 ## License
 
 Pake is open source under GPL-3.0, see [LICENSE](./LICENSE) and [Pake Output Exception](./LICENSE-EXCEPTION); apps you build with Pake are entirely yours to use and distribute. If you fork Pake into your own product, to avoid confusion please give it a different name and credit Pake as the source.
+
+Edit one
