@@ -1,5 +1,8 @@
 // Menu functionality is only used on macOS; the module is gated in app/mod.rs.
+use crate::app::navigation::{history_step, reload_window};
 use crate::app::window::{open_additional_window_safe, MultiWindowState};
+use std::io::Write;
+use std::process::{Command, Stdio};
 use tauri::menu::{AboutMetadata, Menu, MenuItem, PredefinedMenuItem, Submenu};
 use tauri::{AppHandle, Manager, WebviewWindow, Wry};
 use tauri_plugin_opener::OpenerExt;
@@ -254,6 +257,18 @@ fn focused_webview_window(app_handle: &AppHandle) -> Option<WebviewWindow> {
         .or_else(|| windows.get("pake").cloned())
 }
 
+/// Copy text via pbcopy so it works when the page has no JS context (error
+/// shells) and when the Clipboard API is blocked by the site CSP.
+fn copy_text_to_pasteboard(text: &str) {
+    let Ok(mut child) = Command::new("pbcopy").stdin(Stdio::piped()).spawn() else {
+        return;
+    };
+    if let Some(stdin) = child.stdin.as_mut() {
+        let _ = stdin.write_all(text.as_bytes());
+    }
+    let _ = child.wait();
+}
+
 pub fn handle_menu_click(app_handle: &AppHandle, id: &str) {
     match id {
         "new_window" => {
@@ -266,7 +281,8 @@ pub fn handle_menu_click(app_handle: &AppHandle, id: &str) {
         }
         "reload" => {
             if let Some(window) = focused_webview_window(app_handle) {
-                let _ = window.eval("window.location.reload()");
+                // Native reload works on blank error pages where eval cannot.
+                reload_window(&window);
             }
         }
         "toggle_devtools" => {
@@ -296,12 +312,12 @@ pub fn handle_menu_click(app_handle: &AppHandle, id: &str) {
         }
         "go_back" => {
             if let Some(window) = focused_webview_window(app_handle) {
-                let _ = window.eval("window.history.back()");
+                history_step(&window, true);
             }
         }
         "go_forward" => {
             if let Some(window) = focused_webview_window(app_handle) {
-                let _ = window.eval("window.history.forward()");
+                history_step(&window, false);
             }
         }
         "go_home" => {
@@ -321,7 +337,11 @@ pub fn handle_menu_click(app_handle: &AppHandle, id: &str) {
         }
         "copy_url" => {
             if let Some(window) = focused_webview_window(app_handle) {
-                let _ = window.eval("navigator.clipboard.writeText(window.location.href)");
+                // Prefer the native webview URL so copy still works on error
+                // pages that have no document.location / clipboard API.
+                if let Ok(url) = window.url() {
+                    copy_text_to_pasteboard(url.as_str());
+                }
             }
         }
         "paste_and_match_style" => {
