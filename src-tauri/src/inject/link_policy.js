@@ -58,3 +58,26 @@ function createInternalUrlMatcher(pattern) {
     }
   };
 }
+
+// Protocol links may represent a web app's compose/contact menu. Let target
+// and document handlers cancel them before falling back to the system app.
+function handleProtocolLinkClick(event, openExternal) {
+  if (event.defaultPrevented) return;
+  const anchor = event.target?.closest?.("a[href]");
+  if (!anchor || anchor.hasAttribute("download")) return;
+  if (anchor.target && !["_blank", "_new", "_self"].includes(anchor.target))
+    return;
+  if (typeof anchor.href !== "string" || !/^(mailto|tel):/i.test(anchor.href))
+    return;
+  const url = new URL(anchor.href);
+  if (window.pakeConfig?.force_internal_navigation) return;
+  if (
+    createInternalUrlMatcher(window.pakeConfig?.internal_url_regex)(
+      url.href,
+      window.pakeConfig?.url || window.location.href,
+    )
+  )
+    return;
+  event.preventDefault();
+  openExternal(url.href);
+}

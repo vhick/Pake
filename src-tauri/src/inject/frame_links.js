@@ -43,6 +43,10 @@
     return null;
   };
 
+  window.addEventListener("click", (event) =>
+    handleProtocolLinkClick(event, forward),
+  );
+
   document.addEventListener(
     "click",
     (event) => {
@@ -52,7 +56,7 @@
       if (anchor.target && !["_blank", "_new", "_self"].includes(anchor.target))
         return;
       const external = externalDestination(anchor.getAttribute("href"), "");
-      if (!external) return;
+      if (!external || /^(mailto|tel):/.test(external)) return;
       event.preventDefault();
       event.stopImmediatePropagation();
       forward(external);

@@ -16,6 +16,7 @@ function loadFrame(config = {}) {
       pakeConfig: { url: "https://mail.example.com/app", ...config },
       top: { postMessage: (message) => messages.push(message) },
       open: nativeOpen,
+      addEventListener: () => {},
     },
     document: {
       baseURI: "https://mail.example.com/app",
@@ -124,4 +125,38 @@ describe("subframe external links", () => {
     frame.listeners.click(event);
     expect(frame.messages).toHaveLength(1);
   });
+});
+
+describe("protocol link fallback", () => {
+  it.each([
+    ["", {}, false, false, true],
+    ["_blank", {}, false, false, true],
+    ["_self", {}, false, false, true],
+    ["_new", {}, false, false, true],
+    ["details", {}, false, false, false],
+    ["", {}, true, false, false],
+    ["", {}, false, true, false],
+    ["", { force_internal_navigation: true }, false, false, false],
+    ["", { internal_url_regex: "^mailto:" }, false, false, false],
+  ])(
+    "respects target=%s config=%j download=%s canceled=%s",
+    (target, config, download, canceled, opens) => {
+      const frame = loadFrame(config);
+      const open = vi.fn();
+      const event = {
+        defaultPrevented: canceled,
+        target: {
+          closest: () => ({
+            href: "mailto:person@example.com",
+            target,
+            hasAttribute: () => download,
+          }),
+        },
+        preventDefault: vi.fn(),
+      };
+      frame.handleProtocolLinkClick(event, open);
+      expect(open).toHaveBeenCalledTimes(opens ? 1 : 0);
+      expect(event.preventDefault).toHaveBeenCalledTimes(opens ? 1 : 0);
+    },
+  );
 });

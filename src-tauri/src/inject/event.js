@@ -736,6 +736,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
       const target = anchorElement.target;
       const hrefUrl = new URL(anchorElement.href);
+      if (["mailto:", "tel:"].includes(hrefUrl.protocol)) return;
       const absoluteUrl = hrefUrl.href;
       let filename = anchorElement.download || getFilenameFromUrl(absoluteUrl);
 
@@ -848,7 +849,11 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   };
 
-  // Prevent some special websites from executing in advance, before the click event is triggered.
+  window.addEventListener("click", (event) =>
+    handleProtocolLinkClick(event, handleExternalLink),
+  );
+
+  // Capture web links before site popup handlers route them into the app.
   document.addEventListener("click", detectAnchorElementClick, true);
 
   // Rewrite the window.open function.
